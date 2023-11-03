@@ -1,66 +1,62 @@
-# Brain segmentation
+## Deep learning based skull stripping
 
-This is a source code for the deep learning segmentation used in the paper [Association of genomic subtypes of lower-grade gliomas with shape features automatically extracted by a deep learning algorithm.](https://doi.org/10.1016/j.compbiomed.2019.05.002)
-It employs a U-Net like network for skull stripping and FLAIR abnormality segmentation.
-This repository contains a set of functions for data preprocessing (MatLab), training and inference (Python).
-Weights for trained models are provided and can be used for deep learning based skull stripping or fine-tuning on a different dataset.
-If you use our model or weights, please cite:
+This folder contains an implementation of our deep learning based skull removal algorithm based on FLAIR modality MRI.
+It can be used to preprocess MRI images, train or fine-tune the network for skull stripping or apply it to a custom dataset.
 
-```
-@article{buda2019association,
-  title={Association of genomic subtypes of lower-grade gliomas with shape features automatically extracted by a deep learning algorithm},
-  author={Buda, Mateusz and Saha, Ashirbani and Mazurowski, Maciej A},
-  journal={Computers in Biology and Medicine},
-  volume={109},
-  year={2019},
-  publisher={Elsevier},
-  doi={10.1016/j.compbiomed.2019.05.002}
-}
-```
+### Results
+Some qualitative results for the worst (94.76% DSC) and best case (96.62% DSC) from the test set before postprocessing.
+Notice that the reason for suboptimal performance of the deep learning based segmentation (red outline) is that the ground truth (blue outline) is also imperfect since it was generated using another automatic skull stripping tool.
 
-Developed by [mateuszbuda](https://github.com/mateuszbuda).
-
-The repository is divided into two folders.
-One for skull stripping and one for FLAIR abnormality segmentation.
-They are based on the same model architecture but can be used separately.
-
-## Prerequisites
-
-- MatLab 2016b for pre-processing
-- Python 2 with dependencies listed in the `requirements.txt` file
-```
-sudo pip install -r requirements.txt
-```
-
-## Results
-
-Below we show qualitative results for the average and median case.
-Blue outline corresponds to ground truth and red to the final automatic segmentation output.
-Images show FLAIR modality after preprocessing and skull stripping.
-
-| Average Case | Median Case |
+| Worst Case | Best Case |
 |:----------:|:---------:|
-|![Average case](CS_6669.gif)|![Median case](HT_7473.gif)|
+|![Worst case](DU_5851.gif)|![Best case](CS_6669.gif)|
 
-The distribution of Dice similarity coefficient (DSC) for the whole dataset of 110 cases used in our study.
+The average Dice similarity coefficient (DSC) for this split was 95.72%.
+The distribution of DCS is shown below.
 
-![DSC distribution](DSC_distribution.png)
+![DCS](DSC.png)
 
-The red vertical line corresponds to mean DSC (83.60%) and the green one to median DSC (87.33%).
+Training log for a random 5 test cases split:
 
-## Trained weights
+![training](training.png)
 
-To download trained weights use `download_weights.sh` script located in both skull stripping or flair segmentation folder.
-It downloads *.h5 file with weights corresponding to training log shown in each task specific folder and responsible for the results reported there.
+### Usage
 
-## U-Net architecture
+#### Preprocessing
+You need to have a folder with images preprocessed using provided matlab function `preprocessing3D.m`.
+It rescales them to have spacial dimensions 256x256 and performs contrast normalization.
+Refer to the documentation of `preprocessing3D.m` function for more details.
+The main requirement for the following steps is to have image names in format `<case_id>_<slice_number>.tif` and corresponding masks named `<case_id>_<slice_number>_mask.tif`.
 
-The figure below shows a U-Net architecture implemented in this repository.
+#### Training
+The training script `train.py` has variables defined at the top that you need to set:
 
-![unet](unet.png)
+- `train_images_path` - folder containing training images
+- `valid_images_path` - folder containing validation images
+    
+Other variables can be changed to adjust some training parameters.
+Then, run the training using
+```
+python train.py
+```
 
-## Data
+#### Testing
+To run the inference, you need to set up some variables defined at the top of the `test.py` script:
 
-![brain-mri-lgg](brain-mri-lgg.png)
+- `weights_path` - path to the trained weights
+- `train_images_path` - folder containing training images to compute the mean and standard deviation for data normalization; if you pass your own mean and standard deviation to the `test` function, this variable is not used
+- `test_images_path` - folder with test images for prediction; it must contain corresponding mask files as well, however, they can be dummy (all zeros)
+- `predictions_path` - folder for saving predicted and ground truth segmentation outlines (will be created if it doesn't exist)
 
-[kaggle.com/mateuszbuda/lgg-mri-segmentation](https://www.kaggle.com/mateuszbuda/lgg-mri-segmentation)
+When all variables are set up, run the inference using
+```
+python test.py
+```
+
+If you want to use our trained weights for inference, you should use mean and standard deviation values for normalization computed on our training set.
+They are the default parameter values used in the `test` function of `test.py` script.
+
+Trained weights can be downloaded using provided script
+```
+./download_weights.sh 
+```
